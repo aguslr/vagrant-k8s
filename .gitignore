@@ -1,0 +1,6 @@
+*.json
+*.log
+*.retry
+*.tmp
+.vagrant
+Makefile
