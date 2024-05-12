@@ -1,0 +1,26 @@
+---
+- name: Configure all nodes
+  become: True
+  hosts: all
+  roles:
+    - common
+    - pkg
+    - k8s
+
+- name: Configure Control Plane
+  become: True
+  hosts: master
+  roles:
+    - init
+
+- name: Configure worker nodes
+  become: True
+  hosts: nodes
+  roles:
+    - join
+
+- name: Configure Dashboard UI
+  become: False
+  hosts: master
+  roles:
+    - dashboard

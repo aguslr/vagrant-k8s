@@ -1,0 +1,34 @@
+---
+modules:
+  - br_netfilter
+  - overlay
+
+packages:
+  crio:
+    - cri-o
+  k8s:
+    - kubeadm
+    - kubectl
+    - kubelet
+  misc:
+    - python3-kubernetes
+    - screen
+  selinux:
+    - container-selinux
+
+ssh_private_keys:
+  - '/vagrant/machines/{{ inventory_hostname }}/libvirt/private_key'
+  - '/vagrant/machines/{{ inventory_hostname }}/virtualbox/private_key'
+
+sysctl:
+  - net.bridge.bridge-nf-call-iptables
+  - net.bridge.bridge-nf-call-ip6tables
+  - net.ipv4.ip_forward
+
+user:
+  name:  "{{ ansible_user | default(lookup('env', 'USER')) }}"
+  group: "{{ ansible_user | default(lookup('env', 'USER')) }}"
+
+versions:
+  dashboard:  'v2.7.0'
+  kubernetes: 'v1.29'

@@ -1,0 +1,11 @@
+---
+- name: Wait for control-plane
+  ansible.builtin.wait_for:
+    host: master
+    port: 6443
+
+- name: Join cluster
+  ansible.builtin.command: "kubeadm join master:6443 --token={{ hostvars['master']['_k8s_token'].stdout }} --discovery-token-unsafe-skip-ca-verification"
+  args:
+    creates: /var/lib/kubelet/config.yaml
+  when: hostvars['master']['_k8s_token'] is defined

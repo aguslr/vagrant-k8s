@@ -20,6 +20,11 @@ VAGRANT_LOG         = ENV['VAGRANT_LOG']         || 'error'
 K8S_NETBASE = '192.168.'
 K8S_NETID   = (PROJECT_NAME.sum % 100) + 100
 
+# Ansible configuration
+ANSIBLE_GROUPS = { 'nodes' => ['node[01:' + K8S_NODES_COUNT.to_s.rjust(2, '0') + ']'] }
+ANSIBLE_HOSTS  = {}
+ANSIBLE_VARS   = { 'vagrant_mac' => K8S_MAC_ADDRESS }
+
 # Start VMs
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
@@ -59,6 +64,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             :mode => 'bridge',
             :type => 'bridge'
         else
+          ANSIBLE_HOSTS.store(NODE_HOSTNAME, { 'ansible_host' => NODE_IP })
           override.vm.network :private_network,
             :ip                    => NODE_IP,
             :libvirt__forward_mode => 'none'
@@ -75,10 +81,12 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
             :bridge => BRIDGE_IFACE,
             :mac    => NODE_MAC
         else
+          ANSIBLE_HOSTS.store(NODE_HOSTNAME, { 'ansible_host' => NODE_IP })
           override.vm.network :private_network,
             :ip => NODE_IP
         end
       end
+
     end
 
   end
@@ -102,6 +110,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
           :mode => 'bridge',
           :type => 'bridge'
       else
+        ANSIBLE_HOSTS.store(NODE_HOSTNAME, { 'ansible_host' => NODE_IP })
         override.vm.network :private_network,
           :ip                    => NODE_IP,
           :libvirt__forward_mode => 'none'
@@ -118,12 +127,29 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
           :bridge => BRIDGE_IFACE,
           :mac    => K8S_MAC_ADDRESS
       else
+        ANSIBLE_HOSTS.store(NODE_HOSTNAME, { 'ansible_host' => NODE_IP })
         override.vm.network :private_network,
           :ip => NODE_IP
       end
     end
 
-    node.vm.synced_folder '.', '/vagrant', type: 'rsync'
+    # Sync folders
+    node.vm.synced_folder 'ansible',  '/ansible', type: 'rsync'
+    node.vm.synced_folder '.vagrant', '/vagrant', type: 'rsync'
+
+    # Change permissions of SSH keys
+    node.vm.provision :shell, inline: 'chmod 600 /vagrant/machines/*/*/private_key'
+
+    # Provision VMs
+    node.vm.provision :ansible_local do |ansible|
+      ansible.extra_vars        = ANSIBLE_VARS
+      ansible.galaxy_role_file  = 'requirements.yml'
+      ansible.groups            = ANSIBLE_GROUPS
+      ansible.host_vars         = ANSIBLE_HOSTS
+      ansible.limit             = 'all'
+      ansible.playbook          = 'playbook.yml'
+      ansible.provisioning_path = '/ansible'
+    end
 
   end
 

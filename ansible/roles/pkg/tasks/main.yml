@@ -1,0 +1,74 @@
+---
+- block:
+  - name: Add Kubernetes repository key
+    ansible.builtin.get_url:
+      url:  'https://pkgs.k8s.io/core:/stable:/{{ versions.kubernetes }}/deb/Release.key'
+      dest: /etc/apt/trusted.gpg.d/kubernetes-apt-keyring.asc
+
+  - name: Add Kubernetes repository
+    ansible.builtin.apt_repository:
+      repo:         'deb https://pkgs.k8s.io/core:/stable:/{{ versions.kubernetes }}/deb/ /'
+      filename:     kubernetes
+      update_cache: False
+
+  - name: Add CRI-O repository key
+    ansible.builtin.get_url:
+      url:  'https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/deb/Release.key'
+      dest: /etc/apt/trusted.gpg.d/cri-o-apt-keyring.asc
+
+  - name: Add CRI-O repository
+    ansible.builtin.apt_repository:
+      repo:         'deb https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/deb/ /'
+      filename:     cri-o
+      update_cache: False
+
+  - name: Install packages
+    ansible.builtin.apt:
+      name:         '{{ packages.crio + packages.k8s }}'
+      state:        present
+      update_cache: True
+
+  - name: Install extra packages
+    ansible.builtin.apt:
+      name:         '{{ packages.misc }}'
+      state:        present
+      update_cache: True
+    when: inventory_hostname == 'master'
+  when: ansible_os_family == 'Debian'
+
+- block:
+  - name: Add Kubernetes repository
+    ansible.builtin.yum_repository:
+      file:        kubernetes
+      name:        kubernetes
+      description: Kubernetes repository
+      baseurl:     'https://pkgs.k8s.io/core:/stable:/{{ versions.kubernetes }}/rpm/'
+      gpgkey:      'https://pkgs.k8s.io/core:/stable:/{{ versions.kubernetes }}/rpm/repodata/repomd.xml.key'
+      enabled:     True
+      gpgcheck:    True
+      exclude:     '{{ packages.k8s }}'
+
+  - name: Add CRI-O repository
+    ansible.builtin.yum_repository:
+      file:        cri-o
+      name:        cri-o
+      description: CRI-O repository
+      baseurl:     'https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/rpm/'
+      gpgkey:      'https://pkgs.k8s.io/addons:/cri-o:/prerelease:/main/rpm/repodata/repomd.xml.key'
+      enabled:     True
+      gpgcheck:    True
+
+  - name: Install packages
+    ansible.builtin.yum:
+      name:             '{{ packages.crio + packages.k8s + packages.selinux }}'
+      state:            present
+      update_cache:     True
+      disable_excludes: kubernetes
+
+  - name: Install extra packages
+    ansible.builtin.yum:
+      name:         '{{ packages.misc }}'
+      state:        present
+      update_cache: True
+    when: inventory_hostname == 'master'
+  when: ansible_os_family == 'RedHat'

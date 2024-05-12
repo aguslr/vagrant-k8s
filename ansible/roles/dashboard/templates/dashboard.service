@@ -1,0 +1,14 @@
+[Unit]
+Description=Kubernetes Dashboard UI
+StartLimitInterval=200
+StartLimitBurst=5
+
+[Service]
+ExecStart=kubectl port-forward -n kubernetes-dashboard --address=0.0.0.0 service/kubernetes-dashboard {{ public.port }}:443
+RemainAfterExit=no
+Restart=always
+RestartSec=30
+TimeoutStartSec=60
+
+[Install]
+WantedBy=multi-user.target

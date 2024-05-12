@@ -1,0 +1,33 @@
+---
+- name: Generate token
+  ansible.builtin.shell: 'kubeadm token generate | tee /etc/kubernetes/token'
+  args:
+    creates:
+      /etc/kubernetes/token
+  register: _k8s_token
+
+- name: Initialize control-plane
+  ansible.builtin.command: 'kubeadm init --apiserver-advertise-address={{ public.ip }} --token={{ _k8s_token.stdout }} --token-ttl=0'
+  args:
+    creates: /etc/kubernetes/admin.conf
+
+- name: Get token command
+  ansible.builtin.copy:
+    dest:    /join_cluster.sh
+    content: "kubeadm join master:6443 --token={{ _k8s_token.stdout }} --discovery-token-unsafe-skip-ca-verification\n"
+    force:   False
+
+- name: Create directory for configuration
+  ansible.builtin.file:
+    path:  '/home/{{ user.name }}/.kube'
+    state: directory
+    owner: '{{ user.name }}'
+    group: '{{ user.group }}'
+
+- name: Copy kubectl configuration
+  ansible.builtin.copy:
+    src:        /etc/kubernetes/admin.conf
+    dest:       '/home/{{ user.name }}/.kube/config'
+    owner:      '{{ user.name }}'
+    group:      '{{ user.group }}'
+    remote_src: True

@@ -1,0 +1,8 @@
+---
+- name: Modify hosts file
+  ansible.builtin.lineinfile:
+    path:   /etc/hosts
+    regexp: '.*{{ item }}$'
+    line:   '{{ hostvars[item].ansible_host }} {{ item }}'
+  when: hostvars[item].ansible_host is defined
+  loop: '{{ ansible_play_hosts }}'

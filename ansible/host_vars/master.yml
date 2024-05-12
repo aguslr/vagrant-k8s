@@ -1,0 +1,6 @@
+---
+ansible_connection: local
+
+public:
+  ip:   "{{ ansible_facts | dict2items | selectattr('value.macaddress', 'defined') | selectattr('value.macaddress', 'equalto', '{}{}:{}{}:{}{}:{}{}:{}{}:{}{}'.format(*vagrant_mac)) | map(attribute='value.ipv4.address') | first | default(ansible_host) }}"
+  port: 8080

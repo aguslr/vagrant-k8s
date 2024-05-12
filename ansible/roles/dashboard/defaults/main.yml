@@ -1,0 +1,5 @@
+---
+post:
+  message: |-
+    Access Dashboard UI at https://{{ dashboard_ip }}:{{ dashboard_port }} with token:
+    {{ dashboard_token }}

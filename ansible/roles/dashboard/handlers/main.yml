@@ -1,0 +1,4 @@
+---
+- name: Post message
+  debug:
+    msg: "{{ post.message.split('\n') }}"

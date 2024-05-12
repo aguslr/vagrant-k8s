@@ -1,0 +1,109 @@
+---
+- name: Wait for nodes
+  ansible.builtin.wait_for:
+    host: '{{ item }}'
+    port: 10250
+  loop: "{{ groups['nodes'] }}"
+
+- name: Create namespace
+  kubernetes.core.k8s:
+    name: kubernetes-dashboard
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Create ServiceAccount
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: admin-user
+        namespace: kubernetes-dashboard
+
+- name: Create Secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: admin-user
+        namespace: kubernetes-dashboard
+        annotations:
+          kubernetes.io/service-account.name: admin-user
+      type: kubernetes.io/service-account-token
+
+- name: Create ClusterRoleBinding
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: admin-user
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: cluster-admin
+      subjects:
+      - kind: ServiceAccount
+        name: admin-user
+        namespace: kubernetes-dashboard
+
+- name: Download Dashboard manifest
+  ansible.builtin.get_url:
+    url:  'https://raw.githubusercontent.com/kubernetes/dashboard/{{ versions.dashboard }}/aio/deploy/recommended.yaml'
+    dest: /tmp/dashboard.yaml
+    mode: 0644
+  register: _dashboard_manifest
+
+- name: Deploy Dashboard
+  kubernetes.core.k8s:
+    state: present
+    src:   /tmp/dashboard.yaml
+  when: _dashboard_manifest is changed
+
+- name: Generate token
+  ansible.builtin.shell: |-
+    kubectl -n kubernetes-dashboard get secret/admin-user -o go-template={% raw %}'{{printf "%s\n" .data.token | base64decode}}'{% endraw %} | tee /home/{{ user.name }}/.kube/token
+  args:
+    creates: '/home/{{ user.name }}/.kube/token'
+  register: _dashboard_token
+
+- name: Save token and IP address
+  ansible.builtin.set_fact:
+    dashboard_ip:    '{{ public.ip }}'
+    dashboard_port:  '{{ public.port }}'
+    dashboard_token: '{{ _dashboard_token.stdout }}'
+  when: _dashboard_token is defined
+
+- name: Create directory for systemd units
+  ansible.builtin.file:
+    path:  '/home/{{ user.name }}/.config/systemd/user'
+    state: directory
+    owner: '{{ user.name }}'
+    group: '{{ user.group }}'
+
+- name: Copy systemd unit
+  ansible.builtin.template:
+    src:   dashboard.service
+    dest:  '/home/{{ user.name }}/.config/systemd/user/'
+    owner: '{{ user.name }}'
+    group: '{{ user.group }}'
+
+- name: Start Dashboard
+  ansible.builtin.systemd_service:
+    name:          dashboard.service
+    state:         started
+    scope:         user
+    enabled:       True
+    daemon_reload: True
+  notify: Post message
+
+- name: Enable linger
+  become: True
+  ansible.builtin.command: 'loginctl enable-linger {{ user.name }}'
+  args:
+    creates: '/var/lib/systemd/linger/{{ user.name }}'
