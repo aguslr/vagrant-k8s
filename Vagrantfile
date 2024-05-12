@@ -1,0 +1,130 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+VAGRANTFILE_API_VERSION = '2'
+
+# Get environment variables
+BRIDGE_IFACE        = ENV['BRIDGE_IFACE']
+K8S_MAC_ADDRESS     = ENV['K8S_MAC_ADDRESS']     || '525400000a00'
+K8S_MASTER_CPUS     = ENV['K8S_MASTER_CPUS']     || 4
+K8S_MASTER_MEMORY   = ENV['K8S_MASTER_MEMORY']   || 2048
+K8S_NODES_COUNT     = ENV['K8S_NODES_COUNT']     || 2
+K8S_NODE_CPUS       = ENV['K8S_NODE_CPUS']       || 2
+K8S_NODE_MEMORY     = ENV['K8S_NODE_MEMORY']     || 2048
+LIBVIRT_DEFAULT_URI = ENV['LIBVIRT_DEFAULT_URI'] || 'qemu:///system'
+PROJECT_NAME        = File.basename(ENV['PWD'])  || 'vagrant-k8s'
+VAGRANT_BOX         = ENV['VAGRANT_BOX']         || 'debian/bookworm64'
+VAGRANT_LOG         = ENV['VAGRANT_LOG']         || 'error'
+
+# Generate network for VMs
+K8S_NETBASE = '192.168.'
+K8S_NETID   = (PROJECT_NAME.sum % 100) + 100
+
+# Start VMs
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+
+  config.vm.box              = VAGRANT_BOX
+  config.vm.box_check_update = false
+
+  config.vm.synced_folder '.', '/vagrant', disabled: true
+
+  # Configure libvirt provider
+  config.vm.provider :libvirt do |virt|
+    virt.connect_via_ssh            = LIBVIRT_DEFAULT_URI.include?('+ssh')     ? true : false
+    virt.qemu_use_session           = LIBVIRT_DEFAULT_URI.include?('/session') ? true : false
+    virt.system_uri                 = LIBVIRT_DEFAULT_URI.gsub('/session', '/system')
+    virt.uri                        = LIBVIRT_DEFAULT_URI
+    virt.management_network_address = K8S_NETBASE + (K8S_NETID - 1).to_s + '.0/24'
+    virt.management_network_name    = PROJECT_NAME + '-mgmt'
+  end
+
+  # Set up worker nodes
+  (1..Integer(K8S_NODES_COUNT)).each do |i|
+    config.vm.define 'node' + i.to_s.rjust(2, '0') do |node|
+
+      NODE_HOSTNAME    = 'node' + i.to_s.rjust(2, '0')
+      NODE_IP          = K8S_NETBASE + K8S_NETID.to_s + '.' + (100 + i).to_s
+      NODE_MAC         = (K8S_MAC_ADDRESS.to_i(16) + i).to_s(16)
+      node.vm.hostname = NODE_HOSTNAME
+
+      # Configure VM for libvirt provider
+      node.vm.provider :libvirt do |virt, override|
+        virt.cpus   = K8S_NODE_CPUS
+        virt.memory = K8S_NODE_MEMORY
+        # Add public network
+        if BRIDGE_IFACE
+          override.vm.network :public_network,
+            :dev  => BRIDGE_IFACE,
+            :mac  => NODE_MAC,
+            :mode => 'bridge',
+            :type => 'bridge'
+        else
+          override.vm.network :private_network,
+            :ip                    => NODE_IP,
+            :libvirt__forward_mode => 'none'
+        end
+      end
+
+      # Configure VM for VirtualBox provider
+      node.vm.provider :virtualbox do |vbox, override|
+        vbox.cpus   = K8S_NODE_CPUS
+        vbox.memory = K8S_NODE_MEMORY
+        # Add public network
+        if BRIDGE_IFACE
+          override.vm.network :public_network,
+            :bridge => BRIDGE_IFACE,
+            :mac    => NODE_MAC
+        else
+          override.vm.network :private_network,
+            :ip => NODE_IP
+        end
+      end
+    end
+
+  end
+
+  # Set up control plane as primary VM
+  config.vm.define 'master', primary: true do |node|
+
+    NODE_HOSTNAME    = 'master'
+    NODE_IP          = K8S_NETBASE + K8S_NETID.to_s + '.10'
+    node.vm.hostname = NODE_HOSTNAME
+
+    # Configure VM for libvirt provider
+    node.vm.provider :libvirt do |virt, override|
+      virt.cpus   = K8S_MASTER_CPUS
+      virt.memory = K8S_MASTER_MEMORY
+      # Add public network
+      if BRIDGE_IFACE
+        override.vm.network :public_network,
+          :dev  => BRIDGE_IFACE,
+          :mac  => K8S_MAC_ADDRESS,
+          :mode => 'bridge',
+          :type => 'bridge'
+      else
+        override.vm.network :private_network,
+          :ip                    => NODE_IP,
+          :libvirt__forward_mode => 'none'
+      end
+    end
+
+    # Configure VM for VirtualBox provider
+    node.vm.provider :virtualbox do |vbox, override|
+      vbox.cpus   = K8S_MASTER_CPUS
+      vbox.memory = K8S_MASTER_MEMORY
+      # Add public network
+      if BRIDGE_IFACE
+        override.vm.network :public_network,
+          :bridge => BRIDGE_IFACE,
+          :mac    => K8S_MAC_ADDRESS
+      else
+        override.vm.network :private_network,
+          :ip => NODE_IP
+      end
+    end
+
+    node.vm.synced_folder '.', '/vagrant', type: 'rsync'
+
+  end
+
+end
