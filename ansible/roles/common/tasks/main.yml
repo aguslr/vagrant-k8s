@@ -6,3 +6,38 @@
     line:   '{{ hostvars[item].ansible_host }} {{ item }}'
   when: hostvars[item].ansible_host is defined
   loop: '{{ ansible_play_hosts }}'
+
+- name: Disable swap
+  ansible.builtin.command: swapoff -a
+  when: ansible_swaptotal_mb > 0
+
+- name: Remove swap
+  ansible.builtin.lineinfile:
+    path:   /etc/fstab
+    regexp: '^.*\sswap\s.*$'
+    state:  absent
+    backup: True
+
+- name: Configure modules
+  community.general.modprobe:
+    name:       '{{ item }}'
+    state:      present
+    persistent: present
+  loop: '{{ modules }}'
+
+- name: Configure sysctl
+  ansible.posix.sysctl:
+    name:   '{{ item }}'
+    value:  '1'
+    state:  present
+    reload: True
+  loop: '{{ sysctl }}'
+
+- name: Start services
+  ansible.builtin.systemd_service:
+    name:    '{{ item }}'
+    state:   started
+    enabled: True
+  loop:
+    - crio
+    - kubelet

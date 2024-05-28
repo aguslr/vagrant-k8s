@@ -3,9 +3,8 @@
   become: True
   hosts: all
   roles:
-    - common
     - pkg
-    - k8s
+    - common
 
 - name: Configure Control Plane
   become: True
