@@ -3,6 +3,9 @@ modules:
   - br_netfilter
   - overlay
 
+networks:
+  pods: 192.168.0.0/16
+
 packages:
   crio:
     - cri-o
@@ -30,5 +33,6 @@ user:
   group: "{{ ansible_user | default(lookup('env', 'USER')) }}"
 
 versions:
+  calico:     'v3.28.2'
   dashboard:  'v2.7.0'
   kubernetes: 'v1.29'

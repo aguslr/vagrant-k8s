@@ -7,14 +7,14 @@
   register: _k8s_token
 
 - name: Initialize control-plane
-  ansible.builtin.command: 'kubeadm init --apiserver-advertise-address={{ public.ip }} --token={{ _k8s_token.stdout }} --token-ttl=0'
+  ansible.builtin.command: 'kubeadm init --apiserver-advertise-address={{ public.ip }} --token={{ _k8s_token.stdout }} --token-ttl=0 --upload-certs'
   args:
     creates: /etc/kubernetes/admin.conf
 
 - name: Get token command
   ansible.builtin.copy:
     dest:    /join_cluster.sh
-    content: "kubeadm join master:6443 --token={{ _k8s_token.stdout }} --discovery-token-unsafe-skip-ca-verification\n"
+    content: "kubeadm join master:6443 --token={{ _k8s_token.stdout }} --discovery-token-unsafe-skip-ca-verification --pod-network-cidr {{ networks.pods }}\n"
     force:   False
 
 - name: Create directory for configuration
@@ -31,3 +31,22 @@
     owner:      '{{ user.name }}'
     group:      '{{ user.group }}'
     remote_src: True
+
+- name: Download manifests for Calico
+  ansible.builtin.get_url:
+    dest:  '/home/{{ user.name }}/{{ item }}.yaml'
+    url:   'https://raw.githubusercontent.com/projectcalico/calico/{{ versions.calico }}/manifests/{{ item }}.yaml'
+    owner: '{{ user.name }}'
+    group: '{{ user.group }}'
+  loop:
+    - tigera-operator
+    - custom-resources
+
+- name: Apply Calico manifests
+  become: False
+  kubernetes.core.k8s:
+    src:   '/home/{{ user.name }}/{{ item }}.yaml'
+    state: present
+  loop:
+    - tigera-operator
+    - custom-resources
