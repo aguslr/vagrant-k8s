@@ -50,3 +50,9 @@
   loop:
     - tigera-operator
     - custom-resources
+
+- name: Install calicoctl as module
+  ansible.builtin.get_url:
+    dest: '/usr/local/bin/kubectl-calico'
+    url:  'https://github.com/projectcalico/calico/releases/download/{{ versions.calico }}/calicoctl-linux-amd64'
+    mode: 0755
