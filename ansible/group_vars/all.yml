@@ -35,4 +35,4 @@ user:
 versions:
   calico:     'v3.28.2'
   dashboard:  'v2.7.0'
-  kubernetes: 'v1.29'
+  kubernetes: 'v1.31'
