@@ -1,5 +1,6 @@
 ---
 post:
   message: |-
-    Access Dashboard UI at https://{{ dashboard_ip }}:{{ dashboard_port }} with token:
+    {%- if dashboard_ip == ansible_host %}Run `vagrant ssh -- -L 8080:localhost:8080` and a{% else %}A{% endif -%}
+    ccess Dashboard UI at https://{% if dashboard_ip == ansible_host %}localhost{% else %}{{ dashboard_ip }}{% endif %}:{{ dashboard_port }} with token:
     {{ dashboard_token }}
