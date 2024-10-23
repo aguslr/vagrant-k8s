@@ -3,18 +3,40 @@
 
 VAGRANTFILE_API_VERSION = '2'
 
-# Get environment variables
-BRIDGE_IFACE        = ENV['BRIDGE_IFACE']
-K8S_MAC_ADDRESS     = ENV['K8S_MAC_ADDRESS']     || '525400000a00'
-K8S_MASTER_CPUS     = ENV['K8S_MASTER_CPUS']     || 4
-K8S_MASTER_MEMORY   = ENV['K8S_MASTER_MEMORY']   || 2048
-K8S_NODES_COUNT     = ENV['K8S_NODES_COUNT']     || 2
-K8S_NODE_CPUS       = ENV['K8S_NODE_CPUS']       || 2
-K8S_NODE_MEMORY     = ENV['K8S_NODE_MEMORY']     || 2048
-LIBVIRT_DEFAULT_URI = ENV['LIBVIRT_DEFAULT_URI'] || 'qemu:///system'
-PROJECT_NAME        = File.basename(ENV['PWD'])  || 'vagrant-k8s'
-VAGRANT_BOX         = ENV['VAGRANT_BOX']         || 'debian/bookworm64'
+# Requirements
+require "yaml"
+
+# Copy example configuration file
+vagrant_dir = File.dirname(File.expand_path(__FILE__))
+if not File.exist?("#{vagrant_dir}/settings.yml")
+  FileUtils.cp("#{vagrant_dir}/settings.yml.example", "#{vagrant_dir}/settings.yml")
+end
+
+# Read configuration file
+settings = YAML.load_file "#{vagrant_dir}/settings.yml"
+
+# Get versions
+CALICO_VERSION     = settings["versions"]["calico"]
+DASHBOARD_VERSION  = settings["versions"]["dashboard"]
+KUBERNETES_VERSION = settings["versions"]["kubernetes"]
+VAGRANT_BOX        = ENV['VAGRANT_BOX'] || settings["versions"]["box"]
+
+# Get network settings
+BRIDGE_IFACE    = ENV['BRIDGE_IFACE']    || settings["network"]["bridge"]
+K8S_MAC_ADDRESS = ENV['K8S_MAC_ADDRESS'] || settings["network"]["mac"]
+K8S_PODS_CIDR   = ENV['K8S_PODS_CIDR']   || settings["network"]["pods_cidr"]
+
+# Get kubernetes settings
+K8S_MASTER_CPUS   = ENV['K8S_MASTER_CPUS']   || settings["k8s"]["master"]["cpus"]
+K8S_MASTER_MEMORY = ENV['K8S_MASTER_MEMORY'] || settings["k8s"]["master"]["memory"]
+K8S_NODES_COUNT   = ENV['K8S_NODES_COUNT']   || settings["k8s"]["workers"]["count"]
+K8S_NODE_CPUS     = ENV['K8S_NODE_CPUS']     || settings["k8s"]["workers"]["cpus"]
+K8S_NODE_MEMORY   = ENV['K8S_NODE_MEMORY']   || settings["k8s"]["workers"]["memory"]
+
+# Get other environment variables
 VAGRANT_LOG         = ENV['VAGRANT_LOG']         || 'error'
+LIBVIRT_DEFAULT_URI = ENV['LIBVIRT_DEFAULT_URI'] || 'qemu:///system'
+PROJECT_NAME        = File.basename(vagrant_dir) || 'vagrant-k8s'
 
 # Generate network for VMs
 K8S_NETBASE = '192.168.'
@@ -23,7 +45,13 @@ K8S_NETID   = (PROJECT_NAME.sum % 100) + 100
 # Ansible configuration
 ANSIBLE_GROUPS = { 'nodes' => ['node[01:' + K8S_NODES_COUNT.to_s.rjust(2, '0') + ']'] }
 ANSIBLE_HOSTS  = {}
-ANSIBLE_VARS   = { 'vagrant_mac' => K8S_MAC_ADDRESS }
+ANSIBLE_VARS   = {
+  'vagrant_mac'        => K8S_MAC_ADDRESS,
+  'pods_cidr'          => K8S_PODS_CIDR,
+  'calico_version'     => CALICO_VERSION,
+  'dashboard_version'  => DASHBOARD_VERSION,
+  'kubernetes_version' => KUBERNETES_VERSION
+}
 
 # Start VMs
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
@@ -57,7 +85,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         virt.cpus   = K8S_NODE_CPUS
         virt.memory = K8S_NODE_MEMORY
         # Add public network
-        if BRIDGE_IFACE
+        if BRIDGE_IFACE and not BRIDGE_IFACE.empty?
           override.vm.network :public_network,
             :dev  => BRIDGE_IFACE,
             :mac  => NODE_MAC,
@@ -76,7 +104,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         vbox.cpus   = K8S_NODE_CPUS
         vbox.memory = K8S_NODE_MEMORY
         # Add public network
-        if BRIDGE_IFACE
+        if BRIDGE_IFACE and not BRIDGE_IFACE.empty?
           override.vm.network :public_network,
             :bridge => BRIDGE_IFACE,
             :mac    => NODE_MAC
@@ -103,7 +131,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       virt.cpus   = K8S_MASTER_CPUS
       virt.memory = K8S_MASTER_MEMORY
       # Add public network
-      if BRIDGE_IFACE
+      if BRIDGE_IFACE and not BRIDGE_IFACE.empty?
         override.vm.network :public_network,
           :dev  => BRIDGE_IFACE,
           :mac  => K8S_MAC_ADDRESS,
@@ -122,7 +150,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       vbox.cpus   = K8S_MASTER_CPUS
       vbox.memory = K8S_MASTER_MEMORY
       # Add public network
-      if BRIDGE_IFACE
+      if BRIDGE_IFACE and not BRIDGE_IFACE.empty?
         override.vm.network :public_network,
           :bridge => BRIDGE_IFACE,
           :mac    => K8S_MAC_ADDRESS

@@ -14,7 +14,7 @@
 - name: Get token command
   ansible.builtin.copy:
     dest:    /join_cluster.sh
-    content: "kubeadm join master:6443 --token={{ _k8s_token.stdout }} --discovery-token-unsafe-skip-ca-verification --pod-network-cidr {{ networks.pods }}\n"
+    content: "kubeadm join master:6443 --token={{ _k8s_token.stdout }} --discovery-token-unsafe-skip-ca-verification --pod-network-cidr {{ pods_cidr }}\n"
     force:   False
 
 - name: Create directory for configuration
@@ -35,7 +35,7 @@
 - name: Download manifests for Calico
   ansible.builtin.get_url:
     dest:  '/home/{{ user.name }}/{{ item }}.yaml'
-    url:   'https://raw.githubusercontent.com/projectcalico/calico/{{ versions.calico }}/manifests/{{ item }}.yaml'
+    url:   'https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/{{ item }}.yaml'
     owner: '{{ user.name }}'
     group: '{{ user.group }}'
   loop:
@@ -54,5 +54,5 @@
 - name: Install calicoctl as module
   ansible.builtin.get_url:
     dest: '/usr/local/bin/kubectl-calico'
-    url:  'https://github.com/projectcalico/calico/releases/download/{{ versions.calico }}/calicoctl-linux-amd64'
+    url:  'https://github.com/projectcalico/calico/releases/download/{{ calico_version }}/calicoctl-linux-amd64'
     mode: 0755

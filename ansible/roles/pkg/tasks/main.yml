@@ -2,12 +2,12 @@
 - block:
   - name: Add Kubernetes repository key
     ansible.builtin.get_url:
-      url:  'https://pkgs.k8s.io/core:/stable:/{{ versions.kubernetes }}/deb/Release.key'
+      url:  'https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/deb/Release.key'
       dest: /etc/apt/trusted.gpg.d/kubernetes-apt-keyring.asc
 
   - name: Add Kubernetes repository
     ansible.builtin.apt_repository:
-      repo:         'deb https://pkgs.k8s.io/core:/stable:/{{ versions.kubernetes }}/deb/ /'
+      repo:         'deb https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/deb/ /'
       filename:     kubernetes
       update_cache: False
 
@@ -42,8 +42,8 @@
       file:        kubernetes
       name:        kubernetes
       description: Kubernetes repository
-      baseurl:     'https://pkgs.k8s.io/core:/stable:/{{ versions.kubernetes }}/rpm/'
-      gpgkey:      'https://pkgs.k8s.io/core:/stable:/{{ versions.kubernetes }}/rpm/repodata/repomd.xml.key'
+      baseurl:     'https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/rpm/'
+      gpgkey:      'https://pkgs.k8s.io/core:/stable:/{{ kubernetes_version }}/rpm/repodata/repomd.xml.key'
       enabled:     True
       gpgcheck:    True
       exclude:     '{{ packages.k8s }}'

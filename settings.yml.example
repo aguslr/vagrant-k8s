@@ -1,0 +1,19 @@
+k8s:
+  master:
+    cpus:   4
+    memory: 2048
+  workers:
+    count:  2
+    cpus:   2
+    memory: 2048
+
+network:
+  bridge:    ''
+  mac:       '525400000a00'
+  pods_cidr: '192.168.0.0/16'
+
+versions:
+  box:        'debian/bookworm64'
+  calico:     'v3.28.2'
+  dashboard:  'v2.7.0'
+  kubernetes: 'v1.31'

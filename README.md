@@ -69,11 +69,36 @@ machine, we must prepare the environment:
 Configuration
 -------------
 
-Everything can be configured using environment variables:
+Everything can be configured using a YAML file named `settings.yml`:
+
+```yaml
+k8s:
+  master:
+    cpus:   4
+    memory: 2048
+  workers:
+    count:  2
+    cpus:   2
+    memory: 2048
+
+network:
+  bridge:    ''
+  mac:       '525400000a00'
+  pods_cidr: '192.168.0.0/16'
+
+versions:
+  box:        'debian/bookworm64'
+  calico:     'v3.28.2'
+  dashboard:  'v2.7.0'
+  kubernetes: 'v1.31'
+```
+
+Alternatively, environment variables can also be used:
 
 | Variable              | Function                              | Default             |
 | :-------------------- | :------------------------------------ | :------------------ |
 | `BRIDGE_IFACE`        | Network interface to attach VMs to    | empty               |
+| `K8S_PODS_CIDR`       | Default network CIDR for pods         | `192.168.0.0/16`    |
 | `K8S_MAC_ADDRESS`     | MAC address for master node           | `525400000a00`      |
 | `K8S_MASTER_CPUS`     | Number of CPUs for master node        | `4`                 |
 | `K8S_MASTER_MEMORY`   | Amount of memory for master node      | `2048`              |

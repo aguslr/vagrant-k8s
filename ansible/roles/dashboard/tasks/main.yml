@@ -54,7 +54,7 @@
 
 - name: Download Dashboard manifest
   ansible.builtin.get_url:
-    url:  'https://raw.githubusercontent.com/kubernetes/dashboard/{{ versions.dashboard }}/aio/deploy/recommended.yaml'
+    url:  'https://raw.githubusercontent.com/kubernetes/dashboard/{{ dashboard_version }}/aio/deploy/recommended.yaml'
     dest: /tmp/dashboard.yaml
     mode: 0644
   register: _dashboard_manifest
