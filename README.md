@@ -84,6 +84,8 @@ k8s:
 network:
   bridge:    ''
   mac:       '525400000a00'
+  mgmt_cidr: '192.168.200.200/29'
+  vms_cidr:  '192.168.200.216/29'
   pods_cidr: '192.168.0.0/16'
 
 versions:
@@ -95,18 +97,20 @@ versions:
 
 Alternatively, environment variables can also be used:
 
-| Variable              | Function                              | Default             |
-| :-------------------- | :------------------------------------ | :------------------ |
-| `BRIDGE_IFACE`        | Network interface to attach VMs to    | empty               |
-| `K8S_PODS_CIDR`       | Default network CIDR for pods         | `192.168.0.0/16`    |
-| `K8S_MAC_ADDRESS`     | MAC address for master node           | `525400000a00`      |
-| `K8S_MASTER_CPUS`     | Number of CPUs for master node        | `4`                 |
-| `K8S_MASTER_MEMORY`   | Amount of memory for master node      | `2048`              |
-| `K8S_NODES_COUNT`     | Number of worker nodes                | `2`                 |
-| `K8S_NODE_CPUS`       | Number of CPUs for each worker node   | `2`                 |
-| `K8S_NODE_MEMORY`     | Amount of memory for each worker node | `2048`              |
-| `LIBVIRT_DEFAULT_URI` | URI for libvirt daemon to connect to  | `qemu:///system`    |
-| `VAGRANT_BOX`         | Remote image to use as base for VMs   | `debian/bookworm64` |
+| Variable              | Function                              | Default              |
+| :-------------------- | :------------------------------------ | :------------------- |
+| `BRIDGE_IFACE`        | Network interface to attach VMs to    | empty                |
+| `K8S_MGMT_CIDR`       | Default network CIDR for management   | `192.168.200.200/29` |
+| `K8S_VMS_CIDR`        | Default network CIDR for VMs          | `192.168.200.216/29` |
+| `K8S_PODS_CIDR`       | Default network CIDR for pods         | `192.168.0.0/16`     |
+| `K8S_MAC_ADDRESS`     | MAC address for master node           | `525400000a00`       |
+| `K8S_MASTER_CPUS`     | Number of CPUs for master node        | `4`                  |
+| `K8S_MASTER_MEMORY`   | Amount of memory for master node      | `2048`               |
+| `K8S_NODES_COUNT`     | Number of worker nodes                | `2`                  |
+| `K8S_NODE_CPUS`       | Number of CPUs for each worker node   | `2`                  |
+| `K8S_NODE_MEMORY`     | Amount of memory for each worker node | `2048`               |
+| `LIBVIRT_DEFAULT_URI` | URI for libvirt daemon to connect to  | `qemu:///system`     |
+| `VAGRANT_BOX`         | Remote image to use as base for VMs   | `debian/bookworm64`  |
 
 For example, to orchestrate a cluster with nodes running Debian 12 attached to
 the network interface `eth0`, we do:

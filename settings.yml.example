@@ -10,6 +10,8 @@ k8s:
 network:
   bridge:    ''
   mac:       '525400000a00'
+  mgmt_cidr: '192.168.200.200/29'
+  vms_cidr:  '192.168.200.216/29'
   pods_cidr: '192.168.0.0/16'
 
 versions:

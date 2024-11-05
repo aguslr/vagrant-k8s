@@ -4,6 +4,7 @@
 VAGRANTFILE_API_VERSION = '2'
 
 # Requirements
+require "ipaddr"
 require "yaml"
 
 # Copy example configuration file
@@ -24,6 +25,8 @@ VAGRANT_BOX        = ENV['VAGRANT_BOX'] || settings["versions"]["box"]
 # Get network settings
 BRIDGE_IFACE    = ENV['BRIDGE_IFACE']    || settings["network"]["bridge"]
 K8S_MAC_ADDRESS = ENV['K8S_MAC_ADDRESS'] || settings["network"]["mac"]
+K8S_MGMT_CIDR   = ENV['K8S_MGMT_CIDR']   || settings["network"]["mgmt_cidr"]
+K8S_VMS_CIDR    = ENV['K8S_VMS_CIDR']    || settings["network"]["vms_cidr"]
 K8S_PODS_CIDR   = ENV['K8S_PODS_CIDR']   || settings["network"]["pods_cidr"]
 
 # Get kubernetes settings
@@ -39,8 +42,9 @@ LIBVIRT_DEFAULT_URI = ENV['LIBVIRT_DEFAULT_URI'] || 'qemu:///system'
 PROJECT_NAME        = File.basename(vagrant_dir) || 'vagrant-k8s'
 
 # Generate network for VMs
-K8S_NETBASE = '192.168.'
-K8S_NETID   = (PROJECT_NAME.sum % 100) + 100
+VMS_NETWORK = IPAddr.new(K8S_VMS_CIDR)
+VMS_NETMASK = IPAddr.new('255.255.255.255').mask(VMS_NETWORK.prefix).to_s
+VMS_RANGE   = (VMS_NETWORK).to_range.to_a
 
 # Ansible configuration
 ANSIBLE_GROUPS = { 'nodes' => ['node[01:' + K8S_NODES_COUNT.to_s.rjust(2, '0') + ']'] }
@@ -67,7 +71,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     virt.qemu_use_session           = LIBVIRT_DEFAULT_URI.include?('/session') ? true : false
     virt.system_uri                 = LIBVIRT_DEFAULT_URI.gsub('/session', '/system')
     virt.uri                        = LIBVIRT_DEFAULT_URI
-    virt.management_network_address = K8S_NETBASE + (K8S_NETID - 1).to_s + '.0/24'
+    virt.management_network_address = K8S_MGMT_CIDR
     virt.management_network_name    = PROJECT_NAME + '-mgmt'
   end
 
@@ -76,7 +80,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.vm.define 'node' + i.to_s.rjust(2, '0') do |node|
 
       NODE_HOSTNAME    = 'node' + i.to_s.rjust(2, '0')
-      NODE_IP          = K8S_NETBASE + K8S_NETID.to_s + '.' + (100 + i).to_s
+      NODE_IP          = VMS_RANGE[i + 1].to_s
       NODE_MAC         = (K8S_MAC_ADDRESS.to_i(16) + i).to_s(16)
       node.vm.hostname = NODE_HOSTNAME
 
@@ -95,6 +99,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
           ANSIBLE_HOSTS.store(NODE_HOSTNAME, { 'ansible_host' => NODE_IP })
           override.vm.network :private_network,
             :ip                    => NODE_IP,
+            :netmask               => VMS_NETMASK,
             :libvirt__forward_mode => 'none'
         end
       end
@@ -111,7 +116,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         else
           ANSIBLE_HOSTS.store(NODE_HOSTNAME, { 'ansible_host' => NODE_IP })
           override.vm.network :private_network,
-            :ip => NODE_IP
+            :ip      => NODE_IP,
+            :netmask => VMS_NETMASK
         end
       end
 
@@ -123,7 +129,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.define 'master', primary: true do |node|
 
     NODE_HOSTNAME    = 'master'
-    NODE_IP          = K8S_NETBASE + K8S_NETID.to_s + '.10'
+    NODE_IP          = VMS_RANGE[0].to_s
     node.vm.hostname = NODE_HOSTNAME
 
     # Configure VM for libvirt provider
@@ -141,6 +147,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         ANSIBLE_HOSTS.store(NODE_HOSTNAME, { 'ansible_host' => NODE_IP })
         override.vm.network :private_network,
           :ip                    => NODE_IP,
+          :netmask               => VMS_NETMASK,
           :libvirt__forward_mode => 'none'
       end
     end
@@ -157,7 +164,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       else
         ANSIBLE_HOSTS.store(NODE_HOSTNAME, { 'ansible_host' => NODE_IP })
         override.vm.network :private_network,
-          :ip => NODE_IP
+          :ip      => NODE_IP,
+          :netmask => VMS_NETMASK
       end
     end
 
