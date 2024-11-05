@@ -10,7 +10,7 @@ require "yaml"
 # Copy example configuration file
 vagrant_dir = File.dirname(File.expand_path(__FILE__))
 if not File.exist?("#{vagrant_dir}/settings.yml")
-  FileUtils.cp("#{vagrant_dir}/settings.yml.example", "#{vagrant_dir}/settings.yml")
+  FileUtils.cp("#{vagrant_dir}/settings-example.yml", "#{vagrant_dir}/settings.yml")
 end
 
 # Read configuration file
